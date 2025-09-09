@@ -1,0 +1,18 @@
+pack: buffalo_l
+device: cpu
+det_size: [640, 640]
+threshold: 0.34
+
+paths:
+  facebank_dir: data/facebank
+  index_path:   outputs/facebank.index
+  labels_path:  outputs/labels.json
+
+  library_dir:   data/library
+  library_index: outputs/library.index
+  library_meta:  outputs/library_meta.json
+
+library:
+  min_det_score: 0.5    
+  min_face_size: 48     
+  show_progress: true  

@@ -1,0 +1,9 @@
+insightface==0.7.3
+onnxruntime==1.17.3
+opencv-python>=4.8
+faiss-cpu==1.8.0
+numpy==1.26.4
+scikit-learn==1.5.1
+matplotlib==3.9.0
+pyyaml==6.0.1
+streamlit>=1.28.0
