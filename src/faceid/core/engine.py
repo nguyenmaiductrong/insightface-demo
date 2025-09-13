@@ -27,12 +27,13 @@ class FaceEngine:
         faces = detect_faces(self.app, img_bgr)
         if not faces:
             return None
-        emb = face_to_embedding(faces[0])
+        face = max(faces, key=lambda f: getattr(f, "det_score", 0.0))
+        emb = face_to_embedding(face)
         if emb is None:
             return None
         return emb.astype(np.float32).reshape(-1)
 
-    def verify(self, imgA_bgr: np.ndarray, imgB_bgr: np.ndarray) -> tuple[float, bool]:
+    def verify(self, imgA_bgr: np.ndarray, imgB_bgr: np.ndarray) -> tuple[float | None, bool]:
         e1 = self._embed_first_face(imgA_bgr)
         e2 = self._embed_first_face(imgB_bgr)
         if e1 is None or e2 is None:

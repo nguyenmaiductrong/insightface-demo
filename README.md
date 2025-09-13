@@ -130,7 +130,7 @@ Reusable helper functions:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/insightface-demo.git
+git clone https://github.com/nguyenmaiductrong/insightface-demo.git
 cd insightface-demo
 
 # Create Python virtual environment
@@ -272,5 +272,54 @@ The application window will open with three tabs:
 3. The system will detect and identify faces in real-time
 4. Known identities will be labeled with their names
 5. Click **"Stop Camera"** to end the session
+
+### ⚙️ **Threshold Calibration**
+
+Optimize the similarity threshold for your specific facebank to improve recognition accuracy:
+
+```bash
+# Run threshold calibration with default settings
+python3 -m src.faceid.scripts.calibrate_threshold
+
+# Or with custom paths
+python3 -m src.faceid.scripts.calibrate_threshold \
+    --facebank-dir data/facebank \
+    --config src/faceid/configs/default.yaml \
+    --output-dir outputs
+```
+
+**What it does:**
+- Analyzes all face images in your facebank
+- Computes similarity scores between same/different person pairs
+- Finds optimal threshold using F1-Score maximization
+- Generates visualization chart and recommendations
+
+**Output files:**
+- `outputs/threshold_analysis.png` - F1-Score vs Threshold visualization
+- `outputs/optimal_threshold.txt` - Recommended threshold configuration
+
+**Example output:**
+```
+THRESHOLD OPTIMIZATION RESULTS
+==================================================
+Current threshold:     0.36
+Optimal threshold:     0.2946
+==================================================
+PERFORMANCE METRICS:
+Accuracy:              97.4% 
+Precision:             95.2%
+Recall:                98.1%
+F1-Score:              96.6%
+==================================================
+RECOMMENDATION: Lower threshold from 0.36 to 0.2946
+BENEFIT: Better recall (catch more true matches)
+```
+
+**How to apply the results:**
+1. Update `src/faceid/configs/default.yaml`:
+   ```yaml
+   threshold: 0.2946  # Use the recommended value
+   ```
+2. Restart the application to use the new threshold
 
 ---
