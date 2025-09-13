@@ -1,7 +1,7 @@
-pack: buffalo_l
+pack: buffalo_sc
 device: cpu
-det_size: [640, 640]
-threshold: 0.34
+det_size: [320, 320]
+threshold: 0.36
 
 paths:
   facebank_dir: data/facebank

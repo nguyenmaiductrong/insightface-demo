@@ -3,9 +3,9 @@ import json
 import numpy as np
 import faiss
 
-from .utils import (
+from ..utils import (
     load_cfg, get_app, detect_faces, face_to_embedding,
-    l2_normalize, read_image,
+    l2_normalize, load_image_as_bgr,
 )
 
 EXTS = {".jpg", ".jpeg", ".png"}
@@ -33,11 +33,10 @@ def build_facebank_embeddings(cfg: dict, facebank_dir: Path) -> tuple[np.ndarray
     for person_dir in list_person_dirs(facebank_dir):
         embs = []
         for img_path in list_images(person_dir):
-            pil_img = read_image(img_path)
-            if pil_img is None:
+            img_bgr = load_image_as_bgr(img_path)
+            if img_bgr is None:
                 continue
-            img = np.array(pil_img)[..., ::-1]
-            faces = detect_faces(app, img)
+            faces = detect_faces(app, img_bgr)
             if not faces:
                 continue
             f = faces[0] 
@@ -62,12 +61,15 @@ def build_facebank_embeddings(cfg: dict, facebank_dir: Path) -> tuple[np.ndarray
     return E, labels
 
 if __name__ == "__main__":
-    cfg = load_cfg("configs/default.yaml")
+    from pathlib import Path
+    cfg_path = Path(__file__).parent.parent / "configs/default.yaml"
+    cfg = load_cfg(cfg_path)
     paths = cfg.get("paths", {})
 
-    facebank_dir = Path(paths.get("facebank_dir", "data/facebank")).expanduser()
-    index_path   = Path(paths.get("index_path",   "outputs/facebank.index")).expanduser()
-    labels_path  = Path(paths.get("labels_path",  "outputs/labels.json")).expanduser()
+    project_root = Path(__file__).parent.parent.parent.parent
+    facebank_dir = project_root / paths.get("facebank_dir", "data/facebank")
+    index_path   = project_root / paths.get("index_path",   "outputs/facebank.index")
+    labels_path  = project_root / paths.get("labels_path",  "outputs/labels.json")
 
     E, labels = build_facebank_embeddings(cfg, facebank_dir)
 

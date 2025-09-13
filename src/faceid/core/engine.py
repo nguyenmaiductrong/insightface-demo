@@ -1,30 +1,29 @@
-from typing import Optional, List, Dict, Tuple
 from pathlib import Path
 import json
 import numpy as np
 import faiss
 
-from .utils import (
+from ..utils import (
     load_cfg, get_app, detect_faces, face_to_embedding,
     l2_normalize, cosine_similarity
 )
 
 class FaceEngine:
-    def __init__(self, cfg: Optional[dict] = None):
-        self.cfg = cfg or load_cfg("configs/default.yaml")
+    def __init__(self):
+        self.cfg = load_cfg("src/faceid/configs/default.yaml")
         self.threshold = float(self.cfg.get("threshold"))
         self.paths = self.cfg.get("paths")
         self.app = get_app(self.cfg)
 
         self._library_loaded = False
         self._library_index = None
-        self._library_meta: Optional[List[dict]] = None
+        self._library_meta = None
 
         self._facebank_loaded = False
         self._facebank_index = None
-        self._facebank_labels: Optional[List[str]] = None
+        self._facebank_labels = None
 
-    def embed_first_face(self, img_bgr) -> Optional[np.ndarray]:
+    def _embed_first_face(self, img_bgr) -> np.ndarray | None:
         faces = detect_faces(self.app, img_bgr)
         if not faces:
             return None
@@ -33,9 +32,9 @@ class FaceEngine:
             return None
         return emb.astype(np.float32).reshape(-1)
 
-    def verify(self, imgA_bgr: np.ndarray, imgB_bgr: np.ndarray) -> Tuple[Optional[float], bool]:
-        e1 = self.embed_first_face(imgA_bgr)
-        e2 = self.embed_first_face(imgB_bgr)
+    def verify(self, imgA_bgr: np.ndarray, imgB_bgr: np.ndarray) -> tuple[float, bool]:
+        e1 = self._embed_first_face(imgA_bgr)
+        e2 = self._embed_first_face(imgB_bgr)
         if e1 is None or e2 is None:
             return None, False
         e1 = l2_normalize(e1.reshape(1, -1))[0]
@@ -59,14 +58,14 @@ class FaceEngine:
             self._library_meta = json.load(f)
         self._library_loaded = True
 
-    def search_by_embedding(self, emb: np.ndarray, k: int = 10) -> List[dict]:
+    def _search_by_embedding(self, emb: np.ndarray, k: int = 10) -> list[dict]:
         self.ensure_faiss()
         if self._library_index is None or self._library_meta is None:
             return []
         q = emb.astype(np.float32).reshape(1, -1)
         q = l2_normalize(q)
         scores, idxs = self._library_index.search(q, int(max(1, k)))
-        hits: List[dict] = []
+        hits: list[dict] = []
         for score, idx in zip(scores[0], idxs[0]):
             if idx < 0 or idx >= len(self._library_meta):
                 continue
@@ -74,11 +73,11 @@ class FaceEngine:
             hits.append({"sim": float(score), "meta": meta})
         return hits
 
-    def search(self, img_bgr, k: int = 10) -> List[dict]:
-        emb = self.embed_first_face(img_bgr)
+    def search(self, img_bgr, k: int = 10) -> list[dict]:
+        emb = self._embed_first_face(img_bgr)
         if emb is None:
             return []
-        return self.search_by_embedding(emb, k=k)
+        return self._search_by_embedding(emb, k=k)
 
     def ensure_facebank(self):
         if self._facebank_loaded and self._facebank_index is not None and self._facebank_labels is not None:
@@ -109,7 +108,7 @@ class FaceEngine:
     img_bgr: np.ndarray,
     topk: int = 1,
     unknown_label: str = "Unknown",
-    ) -> Tuple[List[Tuple[int,int,int,int]], List[str], List[float]]:
+    ) -> tuple[list[tuple[int,int,int,int]], list[str], list[float]]:
         self.ensure_facebank()
         faces = detect_faces(self.app, img_bgr)
         if not faces:
@@ -117,9 +116,9 @@ class FaceEngine:
 
         H, W = img_bgr.shape[:2]
 
-        boxes: List[Tuple[int,int,int,int]] = []
-        embs: List[Optional[np.ndarray]] = []
-        for f in faces:
+        boxes: list[tuple[int,int,int,int]] = []
+        embs: list[np.ndarray | None] = []
+        for f in faces: 
             bb = getattr(f, "bbox", None)
             if bb is None:
                 boxes.append((0, 0, 0, 0))
@@ -139,8 +138,8 @@ class FaceEngine:
             else:
                 embs.append(e.astype(np.float32).reshape(-1))
 
-        labels: List[str] = []
-        scores: List[float] = []
+        labels: list[str] = []
+        scores: list[float] = []
 
         if self._facebank_index is None or not self._facebank_labels:
             for e in embs:
@@ -175,9 +174,13 @@ class FaceEngine:
                 scores.append(best_sim if best_idx >= 0 else float("nan"))
         return boxes, labels, scores
 
-_ENGINE: Optional[FaceEngine] = None
-def get_engine(cfg: Optional[dict] = None) -> FaceEngine:
+_ENGINE: FaceEngine | None = None
+def get_rt_engine_cached() -> FaceEngine:
     global _ENGINE
     if _ENGINE is None:
-        _ENGINE = FaceEngine(cfg=cfg)
+        _ENGINE = FaceEngine()
+        try:
+            _ENGINE.ensure_facebank()
+        except Exception:
+            pass
     return _ENGINE

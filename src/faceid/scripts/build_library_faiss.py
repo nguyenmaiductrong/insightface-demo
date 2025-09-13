@@ -3,17 +3,13 @@ import argparse
 import json
 import numpy as np
 import faiss
+from tqdm.auto import tqdm
 
-from .utils import (
+from ..utils import (
     load_cfg,
     get_app, detect_faces, face_to_embedding,
-    l2_normalize, read_image,
+    l2_normalize, load_image_as_bgr,
 )
-
-try:
-    from tqdm.auto import tqdm
-except Exception: 
-    tqdm = None
 
 EXTS = {".jpg", ".jpeg", ".png"}
 
@@ -45,12 +41,11 @@ def build_library_embeddings(
     nid = 0
 
     for img_path in iterator:
-        pil_img = read_image(img_path)
-        if pil_img is None:
+        img_bgr = load_image_as_bgr(img_path)
+        if img_bgr is None:
             continue
-        img = np.array(pil_img)[..., ::-1]
 
-        faces = detect_faces(app, img)
+        faces = detect_faces(app, img_bgr)
         for face_index, face in enumerate(faces):
             score = float(getattr(face, "det_score", 0.0))
             if score < min_det_score:
@@ -87,15 +82,17 @@ def build_library_embeddings(
     return E, metadatas
 
 if __name__ == "__main__":
-    cfg_path = "configs/default.yaml"
+    from pathlib import Path
+    cfg_path = Path(__file__).parent.parent / "configs/default.yaml"
     cfg = load_cfg(cfg_path)
 
     lib_cfg   = cfg.get("library", {})     
     paths_cfg = cfg.get("paths", {})
 
-    library_dir = Path(paths_cfg.get("library_dir", "data/library")).expanduser()
-    index_path  = Path(paths_cfg.get("library_index", "outputs/library.index")).expanduser()
-    meta_path   = Path(paths_cfg.get("library_meta",  "outputs/library_meta.json")).expanduser()
+    project_root = Path(__file__).parent.parent.parent.parent
+    library_dir = project_root / paths_cfg.get("library_dir", "data/library")
+    index_path  = project_root / paths_cfg.get("library_index", "outputs/library.index")
+    meta_path   = project_root / paths_cfg.get("library_meta",  "outputs/library_meta.json")
 
     min_det_score = float(lib_cfg.get("min_det_score", 0.5))
     min_face_size = int(lib_cfg.get("min_face_size", 48))
